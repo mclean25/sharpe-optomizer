@@ -80,14 +80,14 @@ def solve_frontier(R, C, rf, Corr, sigma):
         W = numpy.ones([n])/n         # start optimization with equal weights
         b_ = [(0,1) for i in range(n)]
         c_ = ({'type':'eq', 'fun': lambda W: sum(W)-1. })
-        print ""
-        print "n", n
-        print "c_", c_
-        print "b_", b_
-        print "W", W
-        print "R", R
-        print "C", C
-        print "rf", rf
+        # print ""
+        # print("n", n)
+        # print("c_", c_)
+        # print("b_", b_)
+        # print("W", W)
+        # print("R", R)
+        # print("C", C)
+        # print("rf", rf)
         optimized = scipy.optimize.minimize(fitness, W, (R, C, r, Corr, sigma), method='SLSQP', constraints=c_, bounds=b_)   
         if not optimized.success: 
             raise BaseException(optimized.message)
@@ -103,12 +103,12 @@ def solve_weights(R, C, rf, Corr, sigma, n):
             mean, var = port_mean_var(n, W, R, C, Corr, sigma)      # calculate mean/variance of the portfolio
             util = (mean - rf) / numpy.sqrt(var)  
         except TypeError:
-            print type(mean)
-            print type(rf)
-            print type(var)
-            print mean
-            print rf
-            print var
+            print(type(mean))
+            print(type(rf))
+            print(type(var))
+            print(mean)
+            print(rf)
+            print(var)
             return None
         return 1/util                                           # maximize the utility, minimize its inverse value
     n = len(R)
