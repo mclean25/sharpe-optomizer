@@ -57,33 +57,44 @@ class DataManager(object):
     this day's data is equal to the next day's data (backfill)
 """
 
-class UniverseOptimizer(object):
-    """
-        This class is designed to attempt to decrease the number of permutations required
-        in order to solve for the highest sharpe ratio in a given universe.
-    """
+class Matricies(object):
 
-    def create_matrix(self, stocks, rf):
-        """ creates a sharpe matrix of the stocks in the current universe """
-        # for stock in working_stocks:
-        #     print(stock.name, stock.sharpe, stock.data.shape, stock.exchange)
-        matrix = pd.concat(
+    def __init__(self, stocks, rf):
+        self.correlation_matrix = self._build_correlation_matrix(stocks, rf)
+        self.sharpe_matrix = self._build_sharpe_matrix(self.correlation_matrix, rf)
+
+        self.sharpe_matrix_stacked_descending = _stack_matrix(self.sharp_matrix, ascending=False)
+        self.sharpe_matrix_stacked_ascending = _stack_matrix(self.sharp_matrix, ascending=True)
+        self.correlation_matrix_stacked_descending = _stack_matrix(self.correlation_matrix, ascending=False)
+        self.correlation_matrix_stacked_ascending = _stack_matrix(self.correlation_matrix, ascending=True)
+
+
+    def get_n_largest_sharpe(self, n):
+        return sharpe_matrix_stacked_descending.index(n)
+
+
+    def get_n_largest_correlation(self, n):
+        return correlation_matrix_stacked_descending.index(n)
+
+
+    def get_n_smallest_sharpe(self, n):
+        return sharpe_matrix_stacked_ascending.index(n)
+
+
+    def get_n_smallest_correlation(self, n):
+        return correlation_matrix_stacked_ascending.index(n)
+
+
+    def _build_correlation_matrix(self, stocks, rf):
+        return pd.concat(
             objs=[x.data_frame['Pct Change'] for x in stocks],
             axis=1,
             keys=[x.symbol for x in stocks]).corr()
 
-        # create copies of the matrix
-        # correlation_matrix will be returned as is (TODO maybe we don't need to do this?)
-        # sharpe_matric will be a matrix of the 2-stock sharpe ratios
-        correlation_matrix, sharpe_matrix = matrix.copy(), matrix.copy()
-        
-        # create a dictionary for easy stock lookup
-        working_stocks_dict = {s.symbol: s for s in stocks}
-        
-        # converting the sharpe matrix from a matrix of correlaitons to a
-        # matrix of sharpe ratios.
-
+    
+    def _build_sharpe_matrix(self, correlation_matrix, rf):
         # first, set all values to nan
+        sharpe_matrix = correlation_matrix.copy()
         sharpe_matrix[:] = nan
 
         for row in sharpe_matrix:
@@ -92,18 +103,23 @@ class UniverseOptimizer(object):
                 col_stock = working_stocks_dict[col]
                 # if the inverse index in the matrix is already calculated, then
                 # we don't need to calculate again.
-                if sharpe_matrix[col][row] != nan:
+                if not pd.isna(sharpe_matrix[col][row]):
                     sharpe_matrix[row][col] = sharpe_matrix[col][row]
                 elif row_stock != col_stock:
-                    sharpe_matrix[row][col] = self.compute_two_stock_sharpe(
+                    sharpe_matrix[row][col] = self._compute_two_stock_sharpe(
                         stock_a=row_stock,
                         stock_b=col_stock,
                         correlation=float(correlation_matrix[row][col]),
                         rf=rf)
 
-        return correlation_matrix, sharpe_matrix, working_stocks_dict
+        return sharpe_matrix
 
-    def compute_two_stock_sharpe(self, stock_a, stock_b, correlation, rf):
+
+    def _stack_matrix(self, matrix, isAscending):
+        return matrix.stack().drop_duplicates().sort_values(ascending=isAscending)
+
+
+    def _compute_two_stock_sharpe(self, stock_a, stock_b, correlation, rf):
         """returns a the sharpe portfolio of two combined stocks"""
 
         # arbitrarily giving more weighting proportionally to the higher rated stock
@@ -114,29 +130,21 @@ class UniverseOptimizer(object):
 
         return (combined_return - rf) / combined_risk
 
-
-class ToBeSorted(object):
-    
-    def get_n_largest(matrix, n):
+    def _get_n_largest(matrix, n):
         return matrix.stack().drop_duplicates().sort_values(ascending=False).index[n]
     
-    def get_n_smallest(matrix, n):
+    def _get_n_smallest(matrix, n):
         return matrix.stack().drop_duplicates().sort_values().index[n]
-    
 
-    
-    def stock_dataframe_name(stock):
-        return stock.symbol
-    
 
-    
-    def check_settings(PORTFOLIO_SIZE):
-        if PORTFOLIO_SIZE < 2:
-            print("WARNING: PORTFOLIO SIZE SHOULD BE >=2")
-    
 
-    
-    def create_portfolio_candidates(correlation_matrix, sharpe_matrix, portfolio_size):
+class UniverseOptimizer(object):
+    """
+        This class is designed to attempt to decrease the number of permutations required
+        in order to solve for the highest sharpe ratio in a given universe.
+    """
+
+    def create_portfolio_candidates(matricies: Matricies, portfolio_size):
         """ Returns a portfolio_size length list of stock names as a portfolio candidate """
         duplicate_counter = 0
         all_portfolios = []
@@ -146,11 +154,11 @@ class ToBeSorted(object):
             # list is stocks, dictionary is the sharpes for each matchup in the portfolio
             stocks = []
             if portfolio_size == 2:
-                all_portfolios.append(list(get_n_largest(sharpe_matrix, depth_scaler)))
+                all_portfolios.append(matricies.get_n_largest_sharpe(depth_scaler))
             else:
                 for first_index in range(2):
                     # print("first_index: ", first_index)
-                    stocks = list(get_n_largest(sharpe_matrix, depth_scaler))
+                    stocks = list(matricies.get_n_largest_sharpe(depth_scaler))
                     # print("portfolio", portfolio)
                     lead = stocks[first_index]
                     # print('lead: ', lead)
@@ -162,7 +170,7 @@ class ToBeSorted(object):
                         for index in index_set:
                             # print("index: ", index)
                             old_lead = lead
-                            lead = create_later_portfolio(index, stocks, portfolio_size, index_set, lead, sharpe_matrix)
+                            lead = create_later_portfolio(index, stocks, portfolio_size, index_set, lead, matricies.sharpe_matrix)
                             # print("new lead: ", lead)
                             stocks.append(lead)
             # print("sorted_port: ", sorted_port)
@@ -174,14 +182,27 @@ class ToBeSorted(object):
         # print("Created {0} duplicate portfolios out of {1}, ({2}%)".format(duplicate_counter, duplicate_counter + len(all_portfolios), (duplicate_counter/(duplicate_counter + len(all_portfolios))*100)))
         return all_portfolios
 
-    def create_later_portfolio(index, stocks, portfolio_size, index_set, lead, a_matrix):
-        """ Completes finding the portfolio stocks after the second stock """
-        for cname, cval in a_matrix[lead].nlargest(index + portfolio_size)[index:].iteritems():
-            if cname not in portfolio:
-                return cname
-            else:
-                continue
-        print("couldn't find any stocks that arn't already in the portfolio in 'create_later_portfolio'")
+        def create_later_portfolio(index, stocks, portfolio_size, index_set, lead, sharpe_matrix):
+            """ Completes finding the portfolio stocks after the second stock """
+            for cname, cval in sharpe_matrix[lead].nlargest(index + portfolio_size)[index:].iteritems():
+                if cname not in portfolio:
+                    return cname
+                else:
+                    continue
+            print("couldn't find any stocks that arn't already in the portfolio in 'create_later_portfolio'")
+
+
+
+class ToBeSorted(object):
+    
+
+    # def stock_dataframe_name(stock):
+    #     return stock.symbol
+
+    
+    # def check_settings(PORTFOLIO_SIZE):
+    #     if PORTFOLIO_SIZE < 2:
+    #         print("WARNING: PORTFOLIO SIZE SHOULD BE >=2")
     
     def initialize_portfolios(portfolio_candidates, working_stocks_dict):
         all_portfolios = []
@@ -353,7 +374,11 @@ if __name__ is "__main__":
     working_stocks = data_manager.load_data("C:\\Users\\alexa\\git\\sharpe-optimizer\\examples\\symbols_short_list.csv")
     working_stocks_by_sharpe = sorted(working_stocks, key=lambda x: x.sharpe, reverse=True)
 
+    working_stocks_dict = {s.symbol: s for s in working_stocks_by_sharpe}
+
     universeOptimizer = UniverseOptimizer()
-    c_matrix, a_matrix, working_stocks_dict = universeOptimizer.create_matrix(
+    matricies = Matricies(
         working_stocks,
         Preferences.RISK_FREE)
+
+    print("done")
