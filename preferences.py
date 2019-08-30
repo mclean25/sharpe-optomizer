@@ -4,7 +4,7 @@ class Preferences(object):
     BEGDATE = "1/1/2017"
     ENDDATE = datetime.datetime.now().date()
     DATA_FREQUENCY = "d"
-    DEPTH_SCALE = 100
+    DEPTH_SCALE = 2
     AVERAGE_SHARPE_CUTOFF = 0.0
     WORKING_NUMBER = 100
     PORTFOLIO_SIZE = 3

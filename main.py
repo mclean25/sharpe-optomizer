@@ -5,8 +5,8 @@ import datetime
 import heapq
 import pandas_datareader as web
 import pandas as pd
+import itertools
 
-from itertools import permutations, combinations
 from numpy import corrcoef, nan, array, ones
 from scipy.optimize import minimize
 
@@ -63,26 +63,26 @@ class Matricies(object):
         self.correlation_matrix = self._build_correlation_matrix(stocks, rf)
         self.sharpe_matrix = self._build_sharpe_matrix(self.correlation_matrix, rf)
 
-        self.sharpe_matrix_stacked_descending = _stack_matrix(self.sharp_matrix, ascending=False)
-        self.sharpe_matrix_stacked_ascending = _stack_matrix(self.sharp_matrix, ascending=True)
-        self.correlation_matrix_stacked_descending = _stack_matrix(self.correlation_matrix, ascending=False)
-        self.correlation_matrix_stacked_ascending = _stack_matrix(self.correlation_matrix, ascending=True)
+        self.sharpe_matrix_stacked_descending = self._stack_matrix(self.sharpe_matrix, isAscending=False)
+        self.sharpe_matrix_stacked_ascending = self._stack_matrix(self.sharpe_matrix, isAscending=True)
+        self.correlation_matrix_stacked_descending = self._stack_matrix(self.correlation_matrix, isAscending=False)
+        self.correlation_matrix_stacked_ascending = self._stack_matrix(self.correlation_matrix, isAscending=True)
 
 
-    def get_n_largest_sharpe(self, n):
-        return sharpe_matrix_stacked_descending.index(n)
+    def get_n_largest_sharpe_pairing(self, n):
+        return self.sharpe_matrix_stacked_descending.index[n]
 
 
-    def get_n_largest_correlation(self, n):
-        return correlation_matrix_stacked_descending.index(n)
+    def get_n_largest_correlation_pairing(self, n):
+        return self.correlation_matrix_stacked_descending.index[n]
 
 
-    def get_n_smallest_sharpe(self, n):
-        return sharpe_matrix_stacked_ascending.index(n)
+    def get_n_smallest_sharpe_pairing(self, n):
+        return self.sharpe_matrix_stacked_ascending.index[n]
 
 
-    def get_n_smallest_correlation(self, n):
-        return correlation_matrix_stacked_ascending.index(n)
+    def get_n_smallest_correlation_pairing(self, n):
+        return self.correlation_matrix_stacked_ascending.index[n]
 
 
     def _build_correlation_matrix(self, stocks, rf):
@@ -130,12 +130,6 @@ class Matricies(object):
 
         return (combined_return - rf) / combined_risk
 
-    def _get_n_largest(matrix, n):
-        return matrix.stack().drop_duplicates().sort_values(ascending=False).index[n]
-    
-    def _get_n_smallest(matrix, n):
-        return matrix.stack().drop_duplicates().sort_values().index[n]
-
 
 
 class UniverseOptimizer(object):
@@ -144,52 +138,66 @@ class UniverseOptimizer(object):
         in order to solve for the highest sharpe ratio in a given universe.
     """
 
-    def create_portfolio_candidates(matricies: Matricies, portfolio_size):
+    def create_portfolio_candidates(self, matricies, portfolio_size):
         """ Returns a portfolio_size length list of stock names as a portfolio candidate """
         duplicate_counter = 0
         all_portfolios = []
 
         # I think depth_scaler is how many of the n top sharpe parings to combine to make a portfolio
         for depth_scaler in range(Preferences.DEPTH_SCALE + 1):
-            # list is stocks, dictionary is the sharpes for each matchup in the portfolio
-            stocks = []
             if portfolio_size == 2:
-                all_portfolios.append(matricies.get_n_largest_sharpe(depth_scaler))
+                all_portfolios.append(sorted(list(matricies.get_n_largest_sharpe(depth_scaler))))
             else:
-                for first_index in range(2):
-                    # print("first_index: ", first_index)
-                    stocks = list(matricies.get_n_largest_sharpe(depth_scaler))
-                    # print("portfolio", portfolio)
-                    lead = stocks[first_index]
-                    # print('lead: ', lead)
-                    # we either start with the first or second stock of the highest rated pair in the matrix
+                portfolio_stocks = []
+                # this will become a tuple of two ticker strings
+                # the "lead" stock is the stock we follow to get the next `n` best sharpe ratio.
+                # this is how we follow the sharpe matrix to build a list of portfolio candidates.
+                first_two_stocks = matricies.get_n_largest_sharpe_pairing(depth_scaler)
+                for lead_ticker in first_two_stocks:
+                    portfolio_stocks = list(first_two_stocks)
+                    # iterate every permutation for the remainder of required stocks in the portfolio
                     for index_set in itertools.permutations(range(portfolio_size-2)):
-                        # print("loc_set: ", loc_set)
-                        index_set = [x + depth_scaler for x in index_set]
-                        # print("modified loc_set: ", loc_set)
-                        for index in index_set:
-                            # print("index: ", index)
-                            old_lead = lead
-                            lead = create_later_portfolio(index, stocks, portfolio_size, index_set, lead, matricies.sharpe_matrix)
-                            # print("new lead: ", lead)
-                            stocks.append(lead)
-            # print("sorted_port: ", sorted_port)
-            # if True not in [sorted_port == seen_port for seen_port in all_portfolios]:
-            #     # print("adding portfolio: {0}".format([sorted_port, portfolio[1]]))
-            #     all_portfolios.append([sorted_port, portfolio[1]])
-            # else:
-            #     duplicate_counter += 1
-        # print("Created {0} duplicate portfolios out of {1}, ({2}%)".format(duplicate_counter, duplicate_counter + len(all_portfolios), (duplicate_counter/(duplicate_counter + len(all_portfolios))*100)))
-        return all_portfolios
+                        # scale these indexes up by the depth scalar
+                        scaled_index_set = [x + depth_scaler for x in index_set]
+                        for index in scaled_index_set:
+                            
+                            lead_ticker = self.find_next_ticker_candidate(
+                                index=index,
+                                current_stocks=portfolio_stocks,
+                                lead_ticker=lead_ticker,
+                                matricies=matricies)
 
-        def create_later_portfolio(index, stocks, portfolio_size, index_set, lead, sharpe_matrix):
-            """ Completes finding the portfolio stocks after the second stock """
-            for cname, cval in sharpe_matrix[lead].nlargest(index + portfolio_size)[index:].iteritems():
-                if cname not in portfolio:
-                    return cname
-                else:
-                    continue
-            print("couldn't find any stocks that arn't already in the portfolio in 'create_later_portfolio'")
+                            portfolio_stocks.append(lead_ticker)
+                            
+                    all_portfolios.append(sorted(portfolio_stocks))
+
+        return self.remove_duplicate_portfolio_candidates(all_portfolios)
+
+    
+    def remove_duplicate_portfolio_candidates(portfolio_candidates: list) -> list:
+        cleaned_portfolios = []
+        for portfolio in portfolio_candidates:
+            if portfolio not in cleaned_portfolios:
+                cleaned_portfolios.append(portfolio)
+
+        return cleaned_portfolios
+
+
+    def find_next_ticker_candidate(self, index, current_stocks, lead_ticker, matricies):
+        """
+            Finds the next ticker to include in the portfolio given a "lead" ticker to follow in
+            the sharpe matrix.
+        """
+
+        for ticker in matricies.sharpe_matrix[lead_ticker].sort_values(ascending=False).index:
+            if ticker not in current_stocks:
+                return ticker
+            else:
+                continue
+
+        raise Exception()
+
+        print("couldn't find any stocks that arn't already in the portfolio in 'create_later_portfolio'")
 
 
 
@@ -274,7 +282,7 @@ class ToBeSorted(object):
         portfolio.weights = W
         portfolio.mean, portfolio.risk = portfolio_mean_var(portfolio, W)
         portfolio.sharpe = calculate_sharpe(portfolio, rf)
-        portfolio.exante_array = calculate_portfolio_exante(portfolio)
+        # portfolio.exante_array = calculate_portfolio_exante(portfolio)
         return portfolio
     
     # working_stocks = standardize_working_stocks(create_stock_universe(WORKING_NUMBER, AVERAGE_SHARPE_CUTOFF, RISK_FREE))
@@ -380,5 +388,8 @@ if __name__ is "__main__":
     matricies = Matricies(
         working_stocks,
         Preferences.RISK_FREE)
+
+    optimizer = UniverseOptimizer()
+    optimizer.create_portfolio_candidates(matricies, 3)
 
     print("done")
