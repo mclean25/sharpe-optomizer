@@ -7,7 +7,7 @@ from preferences import Preferences
 from models.financial_instruments import Stock
 
 
-class DataManager(object):
+class DataLoader(object):
     """
         This class is responsible for loading the data to operate on
     """
@@ -27,7 +27,7 @@ class DataManager(object):
                 data = web.DataReader(
                     name=ticker,
                     data_source='yahoo',
-                    start=Preferences.BEGDATE,
+                    start=Preferences.HISTORICAL_BEGINNING_DATE,
                     end=Preferences.ENDDATE)
             except:
                 continue

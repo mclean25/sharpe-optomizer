@@ -1,5 +1,8 @@
 import numpy as np
+import pandas as pd
 import itertools as it
+
+from preferences import Preferences
 
 
 class Stock(object):
@@ -10,7 +13,13 @@ class Stock(object):
  
     def __init__(self, symbol: str, data_frame: object):
         self.symbol = symbol
-        self.data_frame = self.calculate_adjusted_returns(data_frame)
+
+        self.historical_data_frame = self.calculate_adjusted_returns(
+            data_frame[:Preferences.PORTFOLIO_BUY_DATE])
+
+        self.forecasted_data_frame = self.calculate_adjusted_returns(
+            data_frame[Preferences.PORTFOLIO_BUY_DATE:])
+
         self.calculate_metrics()
 
 
@@ -26,8 +35,8 @@ class Stock(object):
 
 
     def calculate_metrics(self):
-        self.mean = self.data_frame[self.percentage_change_col_identifier].mean()
-        self.risk = self.data_frame[self.percentage_change_col_identifier].var()
+        self.mean = self.historical_data_frame[self.percentage_change_col_identifier].mean()
+        self.risk = self.historical_data_frame[self.percentage_change_col_identifier].var()
         self.sharpe = self.risk ** 0.5
 
 
@@ -116,3 +125,28 @@ class WeightedPortfolio(object):
                 * self.portfolio.array_data.stdevs[stock_combination[1]]
 
         return (variance * 252) ** 0.5
+
+    def build_weighted_returns_data_series(self):
+        """
+            Creates a Pandas.DataFrame of the portfolio performance
+        """
+
+        # set the first item
+        series = pd.DataFrame(
+            {
+                self.portfolio.stocks[0].symbol: self.portfolio.stocks[0] \
+                    .forecasted_data_frame[Stock.percentage_change_col_identifier].copy()
+            })
+
+        series['{0} weight'.format(self.portfolio.stocks[0].symbol)] = self.weights[0]
+
+        # handle the rest of the stocks in the portfolio
+        for index, stock in enumerate(self.portfolio.stocks):
+            if index > 0:
+                series[stock.symbol] = stock.forecasted_data_frame[Stock.percentage_change_col_identifier]
+                series['{0} weight'.format(stock.symbol)] = self.weights[index]
+            
+            series['{0} weighted returns'.format(stock.symbol)] = series[stock.symbol] \
+                * series['{0} weight'.format(stock.symbol)]
+
+        self.weighted_returns_data_series = series

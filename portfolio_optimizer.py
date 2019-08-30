@@ -21,10 +21,14 @@ class PortfolioOptimizer(object):
         if weights is None:
             weights = np.zerosones([portfolio_size])/portfolio_size
 
-        return WeightedPortfolio(
+        optimized_portfolio = WeightedPortfolio(
             portfolio=portfolio,
             weights=weights,
             risk_free=rf)
+
+        optimized_portfolio.build_weighted_returns_data_series()
+
+        return optimized_portfolio
     
 
     def _solve_weights(self, portfolio, rf, portfolio_size):

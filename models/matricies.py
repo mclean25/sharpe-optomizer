@@ -42,7 +42,7 @@ class Matricies(object):
         """
 
         return pd.concat(
-            objs=[x.data_frame['Pct Change'] for x in stocks],
+            objs=[x.historical_data_frame['Pct Change'] for x in stocks],
             axis=1,
             keys=[x.symbol for x in stocks]).corr()
 

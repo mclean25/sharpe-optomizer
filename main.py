@@ -5,7 +5,7 @@ import sys
 from numpy import corrcoef, nan, array, ones
 
 from preferences import Preferences
-from data_manager import DataManager
+from data_loader import DataLoader
 from universe_optimizer import UniverseOptimizer
 from portfolio_optimizer import PortfolioOptimizer
 from models.financial_instruments import Stock, Portfolio, WeightedPortfolio
@@ -21,7 +21,7 @@ class Main(object):
         
         print("Will be loading tickers from the path {0}".format(csv_ticker_path))
 
-        data_manager = DataManager()
+        data_manager = DataLoader()
         stock_universe = data_manager.load_data(path_to_ticker_list)
 
         if len(stock_universe) < 2:
