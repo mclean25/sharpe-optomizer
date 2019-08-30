@@ -13,6 +13,7 @@ class Stock(object):
         self.data_frame = self.calculate_adjusted_returns(data_frame)
         self.calculate_metrics()
 
+
     def __str__(self):
         return self.symbol
 
@@ -29,46 +30,89 @@ class Stock(object):
         self.risk = self.data_frame[self.percentage_change_col_identifier].var()
         self.sharpe = self.risk ** 0.5
 
+
+
 class Portfolio(object):
 
     def __init__(self, stocks: list, correlation_matrix: object):
         self.stocks = stocks
-        self.correlations = build_correlation_combinations(correlation_matrix)
+        self.correlations = self.build_correlation_combinations(correlation_matrix)
+        self.array_data = PortfolioArrayData(stocks)
+
 
     def build_correlation_combinations(self, correlation_matrix):
         correlations = {}
 
-        for combination in it.combinations(sorted(self.stocks), 2):
+        for combination in it.combinations(sorted([x.symbol for x in self.stocks]), 2):
             correlation = correlation_matrix[combination[0]][combination[1]]
             correlations[str(combination[0]) + str(combination[1])] = correlation
 
         return correlations
 
 
-# class Portfolio(object):
-#     """ Portfolio class """
- 
-#     def __init__(
-#             self,
-#             stocks_list,
-#             stocks,
-#             weights,
-#             returns,
-#             sdeviations,
-#             correlations,
-#             mean,
-#             risk,
-#             sharpe,
-#             exante_array,
-#             exante_sum):
-#         self.stocks_list = stocks_list # we need this list because order does matter for the optimizer
-#         self.stocks = stocks # dictionary
-#         self.weights = weights # array
-#         self.returns = returns # list
-#         self.sdeviations = sdeviations # list
-#         self.correlations = correlations # dictionary
-#         self.mean = mean # float
-#         self.risk = risk # float
-#         self.sharpe = sharpe # float
-#         self.exante_array = exante_array
-#         self.exante_sum = exante_sum
+class PortfolioArrayData(object):
+    """
+        When using linear optimization, it's important to keep order of the inputs so we
+        can tell what weights apply to which stocks from the output and that the risk and returns
+        line up correctly (ie: the risk and returns have the same index in their respective lists)
+    """
+
+    def __init__(self, stocks: list):
+
+        self.stocks = []
+        self.returns = []
+        self.stdevs = []
+        
+        for stock in stocks:
+            self.stocks.append(stock.symbol)
+            self.returns.append(stock.mean)
+            self.stdevs.append(stock.risk)
+
+
+    def add_weights(self):
+        pass
+        # TODO: add weights from linear optimization
+
+
+class WeightedPortfolio(object):
+    """
+        Holds metrics for a given portfolio based on the given weights
+        for the stocks in the portfolio
+    """
+
+    def __init__(self, portfolio, weights: list, risk_free: float):
+        self.portfolio = portfolio
+        self.weights = weights
+        self.portfolio_return = self.calculate_portfolio_return()
+        self.portfolio_risk = self.calculate_portfolio_risk()
+        self.portfolio_sharpe = self.calculate_sharpe(risk_free)
+
+
+    def calculate_portfolio_return(self):
+        return sum(np.array(self.portfolio.array_data.returns) * self.weights) * 252
+
+
+    def calculate_sharpe(self, rf):
+        return (self.portfolio_return - rf) / self.portfolio_risk
+
+
+    def calculate_portfolio_risk(self) -> float:
+        variance = 0
+        stocks_list = self.portfolio.stocks
+
+        # calculating the first part of the variance formula
+        for stock_index in range(len(stocks_list)):
+            variance += (self.weights[stock_index]**2) \
+                * (self.portfolio.array_data.stdevs[stock_index]**2)
+        
+        # calculating the second part of the variance formula
+        for stock_combination in it.combinations(range(len(stocks_list)), 2):
+            stock_a_name = stocks_list[stock_combination[0]].symbol
+            stock_b_name = stocks_list[stock_combination[1]].symbol
+
+            variance += 2 * self.weights[stock_combination[0]] * self.weights[stock_combination[1]] \
+                * self.portfolio.correlations[stock_a_name + stock_b_name] \
+                * self.portfolio.array_data.stdevs[stock_combination[0]] \
+                * self.portfolio.array_data.stdevs[stock_combination[1]]
+
+        return (variance * 252) ** 0.5
