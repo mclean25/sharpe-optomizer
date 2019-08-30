@@ -32,7 +32,6 @@ class DataManager(object):
             all_symbols = csv.reader(csvfile)
             for symbol in all_symbols:
                 ticker = symbol[0]
-                # create the stock object after the stock has been verified to pass the minimum sharpe ratio to save time
                 try:
                     data = web.DataReader(ticker, 'yahoo', Preferences.BEGDATE, Preferences.ENDDATE)
                 except:
