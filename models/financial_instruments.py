@@ -149,4 +149,11 @@ class WeightedPortfolio(object):
             series['{0} weighted returns'.format(stock.symbol)] = series[stock.symbol] \
                 * series['{0} weight'.format(stock.symbol)]
 
+        series['portfolio returns'] = 0
+
+        for index, stock in enumerate(self.portfolio.stocks):
+            series['portfolio returns'] += (
+                series[stock.symbol] \
+                * series['{0} weight'.format(stock.symbol)])
+
         self.weighted_returns_data_series = series

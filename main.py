@@ -11,7 +11,6 @@ from portfolio_optimizer import PortfolioOptimizer
 from models.financial_instruments import Stock, Portfolio, WeightedPortfolio
 from models.matricies import Matricies
  
-
 class Main(object):
     """
         Main hanlder for the program
@@ -21,11 +20,11 @@ class Main(object):
         
         print("Will be loading tickers from the path {0}".format(csv_ticker_path))
 
-        data_manager = DataLoader()
+        data_manager = DataLoader(os.path.join(os.getcwd(), 'cached_stock_data.sqlite'))
         stock_universe = data_manager.load_data(path_to_ticker_list)
 
         if len(stock_universe) < 2:
-            print("Couln't load enough data")
+            print("Couldn't load enough data")
             return None
 
         stocks_mapped = {s.symbol: s for s in stock_universe}
@@ -36,14 +35,14 @@ class Main(object):
             Preferences.RISK_FREE)
 
         optimizer = UniverseOptimizer(stocks_mapped)
-        portfolios = optimizer.create_portfolio_candidates(
+        portfolio_candidates = optimizer.create_portfolio_candidates(
             matricies,
             portfolio_size=Preferences.PORTFOLIO_SIZE)
 
         optimized_portfolios = []
         portfolio_optimizer = PortfolioOptimizer()
 
-        for portfolio in portfolios:
+        for portfolio in portfolio_candidates:
             optimized_portfolios.append(
                 portfolio_optimizer.optimize_portfolio(
                     portfolio=portfolio,
@@ -53,12 +52,7 @@ class Main(object):
         return optimized_portfolios
 
 
-if __name__ is "__main__":
-    """
-        Pass in a csv where the first columnn is the list of tickers you would like to pull
-        by running this application with `python main.py "C:\\my\\path\\to\\file.csv"`
-    """
-
+if __name__ == "__main__":
     print("Starting program")
 
     if len(sys.argv) > 1 and sys.argv[1] is not None :
