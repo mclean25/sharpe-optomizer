@@ -11,6 +11,8 @@ Suppors Python 3.x
 
 If this runs without errors, your system should be good to go.
 
+To change the preferences of how the program is run, see `./preferences.py`
+
 #### Viewing the Output
 
 I havn't thought of a good way to output the results yet that is scalable and easy to injest into another Python program or Excel to perform analysis on the results. Therfore for now I suggest using [Visual Studio Code](https://code.visualstudio.com/) or [PyCharm](https://www.jetbrains.com/pycharm/) to run the program, and then set a breakpoint right before the program exists to view the `optimized_portfolios` in memory.
