@@ -1,5 +1,7 @@
 import itertools
 
+from tqdm import tqdm
+
 from preferences import Preferences
 from models.financial_instruments import Portfolio
 
@@ -19,8 +21,9 @@ class UniverseOptimizer(object):
         duplicate_counter = 0
         all_portfolios = []
 
+        print("building portfolio candidates")
         # I think depth_scaler is how many of the n top sharpe parings to combine to make a portfolio
-        for depth_scaler in range(Preferences.DEPTH_SCALE + 1):
+        for depth_scaler in tqdm(range(Preferences.DEPTH_SCALE + 1)):
             if portfolio_size == 2:
                 all_portfolios.append(sorted(list(matricies.get_nlargest_sharpe_pairing(depth_scaler))))
             else:
@@ -54,7 +57,8 @@ class UniverseOptimizer(object):
     def create_unique_portfolios(self, portfolio_candidates: list, matricies) -> list:
         seen_portfolio_candidates = []
         portfolios = []
-        for portfolio_candidate in portfolio_candidates:
+        print("cleaning portfolios")
+        for portfolio_candidate in tqdm(portfolio_candidates):
             if portfolio_candidate not in seen_portfolio_candidates:
                 seen_portfolio_candidates.append(portfolio_candidate)
                 stocks = [self.stocks_mapped[x] for x in portfolio_candidate]
@@ -71,8 +75,9 @@ class UniverseOptimizer(object):
             Finds the next ticker to include in the portfolio given a "lead" ticker to follow in
             the sharpe matrix.
         """
-
-        for ticker in matricies.sharpe_matrix[lead_ticker].sort_values(ascending=False).index:
+        #TODO: should this use depth scale as well?
+        for pairing_sharpe_tuple in matricies.ranked_pairings_descending_dict[lead_ticker]:
+            ticker = pairing_sharpe_tuple[0]
             if ticker not in current_stocks:
                 return ticker
             else:

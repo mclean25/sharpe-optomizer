@@ -5,6 +5,7 @@ import sys
 from numpy import corrcoef, nan, array, ones
 
 from preferences import Preferences
+from tqdm import tqdm
 from data_loader import DataLoader
 from universe_optimizer import UniverseOptimizer
 from portfolio_optimizer import PortfolioOptimizer
@@ -22,6 +23,10 @@ class Main(object):
 
         data_manager = DataLoader(os.path.join(os.getcwd(), 'cached_stock_data.sqlite'))
         stock_universe = data_manager.load_data(path_to_ticker_list)
+
+        print('stocks count before filter {0}'.format(len(stock_universe)))
+        stock_universe = [stock for stock in stock_universe if stock.sharpe > 0]
+        print('stocks count after filter {0}'.format(len(stock_universe)))
 
         if len(stock_universe) < 2:
             print("Couldn't load enough data")
@@ -42,7 +47,8 @@ class Main(object):
         optimized_portfolios = []
         portfolio_optimizer = PortfolioOptimizer()
 
-        for portfolio in portfolio_candidates:
+        print("optimizing portfolios")
+        for portfolio in tqdm(portfolio_candidates):
             optimized_portfolios.append(
                 portfolio_optimizer.optimize_portfolio(
                     portfolio=portfolio,
@@ -64,5 +70,7 @@ if __name__ == "__main__":
 
     optimized_portfolios = Main.get_best_sharpe_portfolios(
         csv_ticker_path=path_to_ticker_list)
+
+    optimized_portfolios = sorted(optimized_portfolios, key=lambda x: x.portfolio_sharpe, reverse=True)
 
     print("Program finished")
