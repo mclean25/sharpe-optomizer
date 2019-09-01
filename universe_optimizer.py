@@ -48,7 +48,8 @@ class UniverseOptimizer(object):
 
                             portfolio_stocks.append(lead_ticker)
                             
-                    all_portfolios.append(sorted(portfolio_stocks))
+                        all_portfolios.append(sorted(portfolio_stocks))
+                        portfolio_stocks = list(first_two_stocks)
 
         # clean out all of the portfolios that contain the same stocks
         return self.create_unique_portfolios(all_portfolios, matricies)

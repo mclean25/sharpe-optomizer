@@ -4,6 +4,8 @@ import sys
 
 from numpy import corrcoef, nan, array, ones
 
+from datetime import datetime
+
 from preferences import Preferences
 from tqdm import tqdm
 from data_loader import DataLoader
@@ -17,7 +19,7 @@ class Main(object):
         Main hanlder for the program
     """
 
-    def get_best_sharpe_portfolios(csv_ticker_path: str) -> list:
+    def get_best_sharpe_portfolios(self, csv_ticker_path: str) -> list:
         
         print("Will be loading tickers from the path {0}".format(csv_ticker_path))
 
@@ -25,7 +27,7 @@ class Main(object):
         stock_universe = data_manager.load_data(path_to_ticker_list)
 
         print('stocks count before filter {0}'.format(len(stock_universe)))
-        stock_universe = [stock for stock in stock_universe if stock.sharpe > 0]
+        stock_universe = self._filter_stocks(stock_universe)
         print('stocks count after filter {0}'.format(len(stock_universe)))
 
         if len(stock_universe) < 2:
@@ -58,6 +60,18 @@ class Main(object):
         return optimized_portfolios
 
 
+    def _filter_stocks(self, stocks: list) -> list:
+        buy_datetime = datetime.strptime(Preferences.PORTFOLIO_BUY_DATE, "%m/%d/%Y")
+        allowed_stocks = []
+        for stock in stocks:
+            if stock.sharpe > 0 \
+            and (stock.forecasted_data_frame.index.max() - buy_datetime).days > 1:
+                allowed_stocks.append(stock)
+        
+        return allowed_stocks
+
+
+
 if __name__ == "__main__":
     print("Starting program")
 
@@ -66,9 +80,9 @@ if __name__ == "__main__":
     else:
         path_to_ticker_list = os.path.join(os.getcwd(), "examples\symbols_short_list.csv")
             
-    Main()
+    m = Main()
 
-    optimized_portfolios = Main.get_best_sharpe_portfolios(
+    optimized_portfolios = m.get_best_sharpe_portfolios(
         csv_ticker_path=path_to_ticker_list)
 
     optimized_portfolios = sorted(optimized_portfolios, key=lambda x: x.portfolio_sharpe, reverse=True)

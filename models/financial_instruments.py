@@ -146,14 +146,18 @@ class WeightedPortfolio(object):
                 series[stock.symbol] = stock.forecasted_data_frame[Stock.percentage_change_col_identifier]
                 series['{0} weight'.format(stock.symbol)] = self.weights[index]
             
-            series['{0} weighted returns'.format(stock.symbol)] = series[stock.symbol] \
-                * series['{0} weight'.format(stock.symbol)]
+            # replace any Nan with 0
+            series['{0} weighted returns'.format(stock.symbol)] = (series[stock.symbol] \
+                * series['{0} weight'.format(stock.symbol)]).fillna(0)
+
 
         series['portfolio returns'] = 0
 
         for index, stock in enumerate(self.portfolio.stocks):
-            series['portfolio returns'] += (
-                series[stock.symbol] \
-                * series['{0} weight'.format(stock.symbol)])
+            series['portfolio returns'] += \
+                series['{0} weighted returns'.format(stock.symbol)]
+
+
+        self.portfolio_return = series['portfolio returns'].sum()
 
         self.weighted_returns_data_series = series

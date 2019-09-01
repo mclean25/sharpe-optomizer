@@ -95,11 +95,11 @@ class Matricies(object):
 
 
     def _build_sharpe_matrix_new(self, correlation_matrix, rf):
-        permutations = it.permutations([x for x in self.stocks_mapped.keys()], 2)
+        permutations = list(it.permutations([x for x in self.stocks_mapped.keys()], 2))
 
         sharpes = {}
 
-        for permutation in permutations:
+        for permutation in tqdm(permutations):
             
             sharpe = None
             ticker_a = permutation[0]
