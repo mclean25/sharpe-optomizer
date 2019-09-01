@@ -17,7 +17,7 @@ class Stock(object):
         self.historical_data_frame = self.calculate_adjusted_returns(
             data_frame[:Preferences.PORTFOLIO_BUY_DATE])
 
-        self.forecasted_data_frame = self.calculate_adjusted_returns(
+        self.future_data_frame = self.calculate_adjusted_returns(
             data_frame[Preferences.PORTFOLIO_BUY_DATE:])
 
         self.calculate_metrics()
@@ -135,7 +135,7 @@ class WeightedPortfolio(object):
         series = pd.DataFrame(
             {
                 self.portfolio.stocks[0].symbol: self.portfolio.stocks[0] \
-                    .forecasted_data_frame[Stock.percentage_change_col_identifier].copy()
+                    .future_data_frame[Stock.percentage_change_col_identifier].copy()
             })
 
         series['{0} weight'.format(self.portfolio.stocks[0].symbol)] = self.weights[0]
@@ -143,7 +143,7 @@ class WeightedPortfolio(object):
         # handle the rest of the stocks in the portfolio
         for index, stock in enumerate(self.portfolio.stocks):
             if index > 0:
-                series[stock.symbol] = stock.forecasted_data_frame[Stock.percentage_change_col_identifier]
+                series[stock.symbol] = stock.future_data_frame[Stock.percentage_change_col_identifier]
                 series['{0} weight'.format(stock.symbol)] = self.weights[index]
             
             # replace any Nan with 0

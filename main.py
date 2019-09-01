@@ -65,7 +65,7 @@ class Main(object):
         allowed_stocks = []
         for stock in stocks:
             if stock.sharpe > 0 \
-            and (stock.forecasted_data_frame.index.max() - buy_datetime).days > 1:
+            and (stock.future_data_frame.index.max() - buy_datetime).days > 1:
                 allowed_stocks.append(stock)
         
         return allowed_stocks
