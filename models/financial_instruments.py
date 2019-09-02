@@ -126,6 +126,7 @@ class WeightedPortfolio(object):
 
         return (variance * 252) ** 0.5
 
+
     def build_weighted_returns_data_series(self):
         """
             Creates a Pandas.DataFrame of the portfolio performance
@@ -138,26 +139,30 @@ class WeightedPortfolio(object):
                     .future_data_frame[Stock.percentage_change_col_identifier].copy()
             })
 
-        series['{0} weight'.format(self.portfolio.stocks[0].symbol)] = self.weights[0]
+        series['Portfolio Cum. Returns'] = 0
 
         # handle the rest of the stocks in the portfolio
         for index, stock in enumerate(self.portfolio.stocks):
-            if index > 0:
-                series[stock.symbol] = stock.future_data_frame[Stock.percentage_change_col_identifier]
-                series['{0} weight'.format(stock.symbol)] = self.weights[index]
-            
-            # replace any Nan with 0
-            series['{0} weighted returns'.format(stock.symbol)] = (series[stock.symbol] \
-                * series['{0} weight'.format(stock.symbol)]).fillna(0)
+            adj_close_col_name = '{0} Adj close'.format(stock.symbol)
+            stock_weight_name = '{0} Weight'.format(stock.symbol)
+            adj_close_change_name = '{0} Pct Change'.format(stock.symbol)
+            cumulative_returns_name = '{0} Cum. Returns'.format(stock.symbol)
+            weighted_cum_returns_name = '{0} Weighted Cum. Returns'.format(stock.symbol)
 
+            series[adj_close_col_name] = stock.future_data_frame[Stock.adjusted_close_col_identifier] \
+                .fillna(method='ffill')
 
-        series['portfolio returns'] = 0
+            series[adj_close_change_name] = series[adj_close_col_name].pct_change()
 
-        for index, stock in enumerate(self.portfolio.stocks):
-            series['portfolio returns'] += \
-                series['{0} weighted returns'.format(stock.symbol)]
+            series[stock_weight_name] = self.weights[index]
 
+            series[cumulative_returns_name] = (1 + series[adj_close_change_name]).cumprod() - 1
 
-        self.portfolio_return = series['portfolio returns'].sum()
+            series[weighted_cum_returns_name] = series[cumulative_returns_name] * series[stock_weight_name]
+
+            series['Portfolio Cum. Returns'] += series[weighted_cum_returns_name]
 
         self.weighted_returns_data_series = series
+
+    def _calculate_stock_future_return(self, stocks):
+        pass

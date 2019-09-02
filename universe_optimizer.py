@@ -68,6 +68,11 @@ class UniverseOptimizer(object):
                         stocks=stocks,
                         correlation_matrix=matricies.correlation_matrix))
 
+        print("returning {0} cleaned portfolios from the provided {1}".format(
+            len(portfolio_candidates),
+            len(portfolios)
+        ))
+
         return portfolios
 
 
