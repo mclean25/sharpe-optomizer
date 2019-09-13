@@ -78,7 +78,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] is not None :
         path_to_ticker_list = sys.argv[1]
     else:
-        path_to_ticker_list = os.path.join(os.getcwd(), "examples\symbols_short_list.csv")
+        path_to_ticker_list = os.path.join(os.getcwd(), 'examples', 'symbols_short_list.csv')
             
     m = Main()
 

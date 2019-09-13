@@ -35,7 +35,7 @@ class Preferences(object):
     """
         Number of stocks to include in a portfolio
     """
-    PORTFOLIO_SIZE = 10
+    PORTFOLIO_SIZE = 3
 
     """
         Risk free rate
