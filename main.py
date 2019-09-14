@@ -3,7 +3,6 @@ import pandas as pd
 import sys
 
 from numpy import corrcoef, nan, array, ones
-
 from datetime import datetime
 
 from preferences import Preferences
@@ -39,7 +38,7 @@ class Main(object):
         universeOptimizer = UniverseOptimizer(stocks_mapped)
         matricies = Matricies(
             stocks_mapped,
-            Preferences.RISK_FREE)
+            Preferences.RISK_FREE)                                                                  
 
         optimizer = UniverseOptimizer(stocks_mapped)
         portfolio_candidates = optimizer.create_portfolio_candidates(
@@ -69,7 +68,6 @@ class Main(object):
                 allowed_stocks.append(stock)
         
         return allowed_stocks
-
 
 
 if __name__ == "__main__":

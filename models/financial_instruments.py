@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import itertools as it
 
+from dateutil.relativedelta import *
+
 from preferences import Preferences
 
 
@@ -127,7 +129,15 @@ class WeightedPortfolio(object):
         return (variance * 252) ** 0.5
 
 
-    def build_weighted_returns_data_series(self):
+    def calculate_post_returns(self):
+        """
+            Calculates the post returns for given portfolio
+        """
+        self._build_weighted_returns_data_series()
+        self._calculate_cumulative_monthly_returns()
+
+
+    def _build_weighted_returns_data_series(self):
         """
             Creates a Pandas.DataFrame of the portfolio performance
         """
@@ -141,6 +151,8 @@ class WeightedPortfolio(object):
 
         series['Portfolio Cum. Returns'] = 0
 
+        print('next portfolio')
+
         # handle the rest of the stocks in the portfolio
         for index, stock in enumerate(self.portfolio.stocks):
             adj_close_col_name = '{0} Adj close'.format(stock.symbol)
@@ -148,6 +160,8 @@ class WeightedPortfolio(object):
             adj_close_change_name = '{0} Pct Change'.format(stock.symbol)
             cumulative_returns_name = '{0} Cum. Returns'.format(stock.symbol)
             weighted_cum_returns_name = '{0} Weighted Cum. Returns'.format(stock.symbol)
+
+            print('stock symbol: ' + stock.symbol)
 
             series[adj_close_col_name] = stock.future_data_frame[Stock.adjusted_close_col_identifier] \
                 .fillna(method='ffill')
@@ -164,5 +178,22 @@ class WeightedPortfolio(object):
 
         self.weighted_returns_data_series = series
 
-    def _calculate_stock_future_return(self, stocks):
-        pass
+    
+    def _calculate_cumulative_monthly_returns(self):
+        """
+            Calculates the cumulative monthly returns for the portfoio
+        """
+        
+        months = [month + 1 for month in range(12)]
+        
+        first_date = self.weighted_returns_data_series.index[0]
+
+        monthly_returns = {}
+        for month in months:
+            end_date = first_date + relativedelta(months=month)
+            monthly_returns['Month {0}'.format(month)] = \
+                self.weighted_returns_data_series[
+                    first_date:end_date
+                ]['Portfolio Cum. Returns'][-1]
+
+        self.monthly_comulative_returns = monthly_returns
