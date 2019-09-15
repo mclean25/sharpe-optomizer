@@ -7,7 +7,7 @@ import pandas_datareader as web
 from tqdm import tqdm
 
 from preferences import Preferences
-from models.stocks import Stock, StockTimeFrame
+from models.stocks import BulkStock, StockTimeFrame
 
 
 class DataLoader(object):
@@ -17,6 +17,7 @@ class DataLoader(object):
 
     def __init__(self, path_to_database: str):
         self.conn = sq.connect(path_to_database)
+        self.todays_date = datetime.datetime.today()
 
 
     def load_data(self, csv_path: str) -> list:
@@ -28,41 +29,42 @@ class DataLoader(object):
         # Will create a connection if one does not exist
         
         working_stocks = []
-
         tickers_to_fetch = self._load_tickers_from_csv(csv_path)
-        todays_date = datetime.datetime.today()
 
         print("Loading stock data")
         for ticker in tqdm(tickers_to_fetch):
-            # try to load from the db first
-
-            data = self._load_from_sql(
-                ticker=ticker
-            )
-
-            # check that the last date is < n days away from the current date.
-            # Idea is to roughly handle long weekends.
-            if data is None or (todays_date - data.index[-1]).days > 4:
-                try:
-                    data = web.DataReader(
-                        name=ticker,
-                        data_source='yahoo')
-                except:
-                    continue
-                else:
-                    self._add_data_to_db(
-                        data=data,
-                        ticker=ticker
-                    )
-
-            if data is not None:
-                working_stocks.append(Stock(ticker, data))
-
+            data = self.get_ticker_data(ticker)
+            if data:
+                working_stocks.append(data)
 
         print("Successfully loaded {0} stocks".format(len(working_stocks)))
 
         return working_stocks
 
+    def get_ticker_data(self, ticker: str) -> BulkStock:
+        data = self._load_from_sql(
+            ticker=ticker
+        )
+
+        # check that the last date is < n days away from the current date.
+        # Idea is to roughly handle long weekends.
+        if data is None or (self.todays_date - data.index[-1]).days > 4:
+            try:
+                data = web.DataReader(
+                    name=ticker,
+                    data_source='yahoo')
+            except:
+                pass #ignore if any issues
+            else:
+                self._add_data_to_db(
+                    data=data,
+                    ticker=ticker
+                )
+
+        if data is not None:
+            return BulkStock(ticker, data)
+
+        return None
 
     def _load_tickers_from_csv(self, csv_path: str) -> list:
         

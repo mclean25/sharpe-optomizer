@@ -12,7 +12,8 @@ from preferences import Preferences
 from data_loader import DataLoader
 from universe_optimizer import UniverseOptimizer
 from portfolio_optimizer import PortfolioOptimizer
-from models.stocks import Stock, StockTimeFrame
+from models.stocks import BulkStock, StockTimeFrame
+from models.test_dates import TestDates
 from models.financial_instruments import Portfolio, WeightedPortfolio
 from models.matricies import Matricies
 
@@ -20,19 +21,24 @@ class TestFrame(object):
 
     def __init__(
         self,
-        beg_date : datetime,
-        buy_date: datetime,
-        end_date : datetime,
+        dates: TestDates,
         forecast_months : int,
+        benchmark : BulkStock,
         stocks_universe: list):
 
-        self.beg_date = beg_date
-        self.buy_date = buy_date
-        self.end_date = end_date
+        self.beg_date = dates.beg_date
+        self.buy_date = dates.buy_date
+        self.end_date = dates.end_date
         self.forecast_months = forecast_months
 
         self.stocks = self._create_test_stocks_list(stocks_universe)
-        self.stocks_mapped = {s.stock.symbol: s for s in stocks}
+        self.benchmark = StockTimeFrame(
+            benchmark,
+            dates.beg_date,
+            dates.buy_date,
+            dates.end_date
+        )
+        self.stocks_mapped = {s.stock.symbol: s for s in self.stocks}
 
 
     def run_test(self):
@@ -41,7 +47,7 @@ class TestFrame(object):
             self.stocks_mapped,
             Preferences.RISK_FREE)                                                                  
 
-        optimizer = UniverseOptimizer(stocks_mapped)
+        optimizer = UniverseOptimizer(self.stocks_mapped)
         portfolio_candidates = optimizer.create_portfolio_candidates(
             matricies,
             portfolio_size=Preferences.PORTFOLIO_SIZE)
@@ -54,8 +60,14 @@ class TestFrame(object):
             optimized_portfolio = portfolio_optimizer.optimize_portfolio(
                 portfolio=portfolio,
                 rf=Preferences.RISK_FREE,
-                portfolio_size=Preferences.PORTFOLIO_SIZE)
-            optimized_portfolio.calculate_post_returns(months_to_check = self.forecast_months)
+                portfolio_size=Preferences.PORTFOLIO_SIZE,
+                forecast_months=self.forecast_months)
+
+            optimized_portfolio.calculate_post_returns(
+                months_to_check = self.forecast_months,
+                benchmark = self.benchmark)
+                
+            optimized_portfolios.append(optimized_portfolio)
 
         self.optimized_portfolios = sorted(
             optimized_portfolios,
@@ -89,12 +101,12 @@ class TestFrame(object):
             Checks that a stock has the required date for the test
             date ranges
         """
-        if stock.data_frame.index[0] <= self.beg_date:
-            if stock.data.data_frame.index[-1] > self.buy_date:
+        if stock.bulk_data.index[0] <= self.beg_date:
+            if stock.bulk_data.index[-1] > self.buy_date:
                 return True
         
         return False
- 
+
 
 
 class Main(object):
@@ -108,11 +120,12 @@ class Main(object):
 
         data_manager = DataLoader(os.path.join(os.getcwd(), 'cached_stock_data.sqlite'))
         stock_universe = data_manager.load_data(path_to_ticker_list)
+        benchmark = data_manager.get_ticker_data('^GSPC')
 
         test_date_increment_months = 1
         test_historical_range_months = 24
         test_forecast_range_months = 12
-        first_date = sorted([x.get_first_date for x in stock_universe])[0]
+        first_date = sorted([x.bulk_data.index[0] for x in stock_universe])[0]
 
         last_historic_test_date = datetime.today() - relativedelta(
             months=test_historical_range_months + test_forecast_range_months)
@@ -120,7 +133,8 @@ class Main(object):
         if first_date > last_historic_test_date:
             raise Exception()
 
-        number_of_tests = math.floor((last_historic_test_date - first_date).months \
+        # 30.5 for average days in a month
+        number_of_tests = math.floor(((last_historic_test_date - first_date).days / 30.5) \
             / test_date_increment_months)
 
         print('Will be runnning {0}'.format(number_of_tests))
@@ -134,11 +148,14 @@ class Main(object):
             end_date = buy_date + relativedelta(months = test_forecast_range_months)
 
             test_frame = TestFrame(
-                beg_date = beg_date,
-                buy_date = buy_date,
-                end_date = end_date,
+                dates = TestDates(
+                    beg_date = beg_date,
+                    buy_date = buy_date,
+                    end_date = end_date
+                ),
+                benchmark = benchmark,
                 forecast_months = test_forecast_range_months,
-                stock_universe = stock_universe
+                stocks_universe = stock_universe
             )
 
             test_frame.run_test()

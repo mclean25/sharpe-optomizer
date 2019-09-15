@@ -5,6 +5,8 @@ import itertools as it
 from dateutil.relativedelta import relativedelta
 from preferences import Preferences
 
+from models.stocks import BulkStock, StockTimeFrame
+
 class Portfolio(object):
 
     def __init__(self, stocks: list, correlation_matrix: object):
@@ -91,12 +93,15 @@ class WeightedPortfolio(object):
         return (variance * 252) ** 0.5
 
 
-    def calculate_post_returns(self, months_to_check: int):
+    def calculate_post_returns(self, months_to_check: int, benchmark: StockTimeFrame):
         """
             Calculates the post returns for given portfolio
         """
         self._build_weighted_returns_data_series()
-        self._calculate_cumulative_monthly_returns(months_to_check)
+
+        self._calculate_cumulative_monthly_returns(
+            months_to_check = months_to_check,
+            benchmark = benchmark)
 
 
     def _build_weighted_returns_data_series(self):
@@ -108,7 +113,7 @@ class WeightedPortfolio(object):
         series = pd.DataFrame(
             {
                 self.portfolio.stocks[0].symbol: self.portfolio.stocks[0] \
-                    .future_data_frame[Stock.percentage_change_col_identifier].copy()
+                    .future_data_frame[BulkStock.percentage_change_col_identifier].copy()
             })
 
         series['Portfolio Cum. Returns'] = 0
@@ -125,7 +130,7 @@ class WeightedPortfolio(object):
 
             print('stock symbol: ' + stock.symbol)
 
-            series[adj_close_col_name] = stock.future_data_frame[Stock.adjusted_close_col_identifier] \
+            series[adj_close_col_name] = stock.future_data_frame[BulkStock.adjusted_close_col_identifier] \
                 .fillna(method='ffill')
 
             series[adj_close_change_name] = series[adj_close_col_name].pct_change()
@@ -141,7 +146,7 @@ class WeightedPortfolio(object):
         self.weighted_returns_data_series = series
 
     
-    def _calculate_cumulative_monthly_returns(self, months_to_check: int):
+    def _calculate_cumulative_monthly_returns(self, months_to_check: int, benchmark: StockTimeFrame):
         """
             Calculates the cumulative monthly returns for the portfoio
         """
@@ -150,12 +155,22 @@ class WeightedPortfolio(object):
         
         first_date = self.weighted_returns_data_series.index[0]
 
-        monthly_returns = {}
+        self.gross_cumulative_monthly_returns = {}
+        self.benchmark_cumulative_monthly_returns = {}
+        self.monthly_cumulative_alpha = {}
+
         for month in months:
             end_date = first_date + relativedelta(months=month)
-            monthly_returns['Month {0}'.format(month)] = \
-                self.weighted_returns_data_series[
-                    first_date:end_date
-                ]['Portfolio Cum. Returns'][-1]
+            month_key = 'Month {0}'.format(month)
 
-        self.monthly_comulative_returns = monthly_returns
+            self.gross_cumulative_monthly_returns[month_key] = \
+                self.weighted_returns_data_series[first_date:end_date]\
+                    ['Portfolio Cum. Returns'][-1]
+
+            self.benchmark_cumulative_monthly_returns[month_key] = \
+                benchmark.future_data_frame[first_date:end_date]\
+                    [BulkStock.percentage_change_col_identifier][-1]
+
+            self.monthly_cumulative_alpha[month_key] = \
+                self.gross_cumulative_monthly_returns[month_key] - \
+                self.benchmark_cumulative_monthly_returns[month_key]

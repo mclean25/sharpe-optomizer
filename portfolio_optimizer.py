@@ -11,7 +11,7 @@ class PortfolioOptimizer(object):
         in order to maximize the sharpe ratio
     """
 
-    def optimize_portfolio(self, portfolio, rf: float, portfolio_size: int):
+    def optimize_portfolio(self, portfolio, rf: float, portfolio_size: int, forecast_months: int):
         """
             Returns the portfolio with the optimized weights
         """
@@ -25,9 +25,6 @@ class PortfolioOptimizer(object):
             portfolio=portfolio,
             weights=weights,
             risk_free=rf)
-
-        optimized_portfolio._build_weighted_returns_data_series()
-        optimized_portfolio._calculate_cumulative_monthly_returns()
 
         return optimized_portfolio
     

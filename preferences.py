@@ -30,7 +30,7 @@ class Preferences(object):
         This value should be small for small stock universe lists but larger to increase the number of
         portfolios at the end of the program.
     """
-    DEPTH_SCALE = 50
+    DEPTH_SCALE = 10
 
     """
         Number of stocks to include in a portfolio
