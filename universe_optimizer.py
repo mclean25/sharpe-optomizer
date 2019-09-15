@@ -16,6 +16,7 @@ class UniverseOptimizer(object):
     def __init__(self, stocks_mapped: dict):
         self.stocks_mapped = stocks_mapped
 
+
     def create_portfolio_candidates(self, matricies, portfolio_size: int):
         """ Returns a portfolio_size length list of stock names as a portfolio candidate """
         duplicate_counter = 0

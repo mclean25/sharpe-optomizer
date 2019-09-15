@@ -7,7 +7,7 @@ import pandas_datareader as web
 from tqdm import tqdm
 
 from preferences import Preferences
-from models.financial_instruments import Stock
+from models.stocks import Stock, StockTimeFrame
 
 
 class DataLoader(object):
@@ -42,7 +42,7 @@ class DataLoader(object):
 
             # check that the last date is < n days away from the current date.
             # Idea is to roughly handle long weekends.
-            if data is None or (datetime.datetime.today() - data.index[-1]).days > 4:
+            if data is None or (todays_date - data.index[-1]).days > 4:
                 try:
                     data = web.DataReader(
                         name=ticker,

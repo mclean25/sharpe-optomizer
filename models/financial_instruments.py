@@ -2,46 +2,8 @@ import numpy as np
 import pandas as pd
 import itertools as it
 
-from dateutil.relativedelta import *
-
+from dateutil.relativedelta import relativedelta
 from preferences import Preferences
-
-
-class Stock(object):
-    """Object that holds a given stocks attributes"""
-
-    percentage_change_col_identifier = 'Pct Change'
-    adjusted_close_col_identifier = 'Adj Close'
- 
-    def __init__(self, symbol: str, data_frame: object):
-        self.symbol = symbol
-
-        self.historical_data_frame = self.calculate_adjusted_returns(
-            data_frame[:Preferences.PORTFOLIO_BUY_DATE])
-
-        self.future_data_frame = self.calculate_adjusted_returns(
-            data_frame[Preferences.PORTFOLIO_BUY_DATE:])
-
-        self.calculate_metrics()
-
-
-    def __str__(self):
-        return self.symbol
-
-    
-    def calculate_adjusted_returns(self, data_frame: object) -> object:
-        data_frame[self.percentage_change_col_identifier] = data_frame[
-            self.adjusted_close_col_identifier].pct_change()
-        
-        return data_frame
-
-
-    def calculate_metrics(self):
-        self.mean = self.historical_data_frame[self.percentage_change_col_identifier].mean()
-        self.risk = self.historical_data_frame[self.percentage_change_col_identifier].var()
-        self.sharpe = self.risk ** 0.5
-
-
 
 class Portfolio(object):
 
@@ -129,12 +91,12 @@ class WeightedPortfolio(object):
         return (variance * 252) ** 0.5
 
 
-    def calculate_post_returns(self):
+    def calculate_post_returns(self, months_to_check: int):
         """
             Calculates the post returns for given portfolio
         """
         self._build_weighted_returns_data_series()
-        self._calculate_cumulative_monthly_returns()
+        self._calculate_cumulative_monthly_returns(months_to_check)
 
 
     def _build_weighted_returns_data_series(self):
@@ -179,12 +141,12 @@ class WeightedPortfolio(object):
         self.weighted_returns_data_series = series
 
     
-    def _calculate_cumulative_monthly_returns(self):
+    def _calculate_cumulative_monthly_returns(self, months_to_check: int):
         """
             Calculates the cumulative monthly returns for the portfoio
         """
-        
-        months = [month + 1 for month in range(12)]
+
+        months = [month + 1 for month in range(months_to_check)]
         
         first_date = self.weighted_returns_data_series.index[0]
 

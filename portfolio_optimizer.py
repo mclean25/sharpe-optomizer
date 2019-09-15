@@ -26,8 +26,8 @@ class PortfolioOptimizer(object):
             weights=weights,
             risk_free=rf)
 
-        optimized_portfolio.build_weighted_returns_data_series()
-        optimized_portfolio._calculate_monthly_returns()
+        optimized_portfolio._build_weighted_returns_data_series()
+        optimized_portfolio._calculate_cumulative_monthly_returns()
 
         return optimized_portfolio
     
