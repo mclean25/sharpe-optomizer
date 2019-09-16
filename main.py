@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import sys
 import math
+import csv
 
 from dateutil.relativedelta import relativedelta
 from numpy import corrcoef, nan, array, ones
@@ -18,6 +19,8 @@ from models.financial_instruments import Portfolio, WeightedPortfolio
 from models.matricies import Matricies
 
 class TestFrame(object):
+
+    max_diff_days : int = 7
 
     def __init__(
         self,
@@ -42,7 +45,6 @@ class TestFrame(object):
 
 
     def run_test(self):
-        universeOptimizer = UniverseOptimizer(self.stocks_mapped)
         matricies = Matricies(
             self.stocks_mapped,
             Preferences.RISK_FREE)                                                                  
@@ -90,7 +92,7 @@ class TestFrame(object):
                     end_date=self.end_date
                 )
 
-                if stock_time_frame.sharpe > 0:
+                if self._check_stock_time_frame(stock_time_frame):
                     test_stocks.append(stock_time_frame)
 
         return test_stocks
@@ -108,6 +110,27 @@ class TestFrame(object):
         return False
 
 
+    def _check_stock_time_frame(self, stock_frame: StockTimeFrame) -> bool:
+        if stock_frame.sharpe > 0:
+            if not stock_frame.historical_data_frame.empty:
+                if not stock_frame.future_data_frame.empty:
+                    if self._check_trading_days(stock_frame):
+                        return True
+        
+        return False
+
+
+    def _check_trading_days(self, stock_frame):
+        """
+            This checks that the stock was trading at least an (n) amount of days after
+            the buy date
+        """
+        if stock_frame.get_max_diff_historical_days < self.max_diff_days \
+            and stock_frame.get_max_diff_future_days < self.max_diff_days:
+                return True
+        
+        return False
+    
 
 class Main(object):
     """
@@ -142,11 +165,10 @@ class Main(object):
         test_frames = []
 
         for test_number in range(number_of_tests):
-            beg_date = first_date + relativedelta(months=(test_number + 1) \
-                * test_date_increment_months)
+            beg_date = first_date + relativedelta(
+                months=test_number * test_date_increment_months)
             buy_date = beg_date + relativedelta(months = test_historical_range_months)
             end_date = buy_date + relativedelta(months = test_forecast_range_months)
-
             test_frame = TestFrame(
                 dates = TestDates(
                     beg_date = beg_date,
@@ -157,10 +179,10 @@ class Main(object):
                 forecast_months = test_forecast_range_months,
                 stocks_universe = stock_universe
             )
-
             test_frame.run_test()
+            test_frames.append(test_frame)
 
-            test_frames.add(test_frame)
+        return test_frames
 
 
     def _filter_stocks(self, stocks: list) -> list:
@@ -174,30 +196,39 @@ class Main(object):
         return allowed_stocks
 
 
+class OutputWriter(object):
+
+    def __init__(self):
+        pass
+
+    def write_results(self, test_results):
+        with open('results.csv', 'w') as f:
+            writer = csv.writer(f)
+            for test_number, test in enumerate(test_results):
+                writer.writerow(['Test Number {0}'.format(test_number)])
+                writer.writerow(['Beg Date', 'Buy Date', 'End Date'])
+                writer.writerow([test.beg_date, test.buy_date, test.end_date])
+                writer.writerow(test.optimized_portfolios[0].monthly_cumulative_alpha.keys())
+                writer.writerow(test.optimized_portfolios[0].monthly_cumulative_alpha.values())
+                writer.writerow([""])
+
+
 if __name__ == "__main__":
     print("Starting program")
 
     if len(sys.argv) > 1 and sys.argv[1] is not None :
         path_to_ticker_list = sys.argv[1]
     else:
-        path_to_ticker_list = os.path.join(os.getcwd(), 'examples', 'symbols_short_list.csv')
-
-    '''
-        1. Get first available historical date (with n available stocks?)
-        2. Each test iteration then becomes result of (1.) plus wanted historical test span plus 
-            some arbitraty test iteration increment (eg: 1 month) to where there is sufficient forecasted
-            (buy date + wanted length of forecasted data).
-    '''
-    test_date_increment_months = 1
-
-    # get mode of beginning and end dates
-    # take first n (percent of beginning dates)
-    # that will be the first date to iterate on
-    # keep iterating until END_DATE - wanted forcast date
+        path_to_ticker_list = os.path.join(
+            os.getcwd(),
+            'examples',
+            'symbols_short_list.csv')
             
     m = Main()
 
-    m.build_test_scenarios(
+    test_results = m.build_test_scenarios(
         csv_ticker_path=path_to_ticker_list)
+
+    OutputWriter().write_results(test_results)
 
     print("Program finished")

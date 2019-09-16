@@ -118,8 +118,6 @@ class WeightedPortfolio(object):
 
         series['Portfolio Cum. Returns'] = 0
 
-        print('next portfolio')
-
         # handle the rest of the stocks in the portfolio
         for index, stock in enumerate(self.portfolio.stocks):
             adj_close_col_name = '{0} Adj close'.format(stock.symbol)
@@ -128,9 +126,7 @@ class WeightedPortfolio(object):
             cumulative_returns_name = '{0} Cum. Returns'.format(stock.symbol)
             weighted_cum_returns_name = '{0} Weighted Cum. Returns'.format(stock.symbol)
 
-            print('stock symbol: ' + stock.symbol)
-
-            series[adj_close_col_name] = stock.future_data_frame[BulkStock.adjusted_close_col_identifier] \
+            series[adj_close_col_name] = stock.future_data_frame[BulkStock.adj_close_col_id] \
                 .fillna(method='ffill')
 
             series[adj_close_change_name] = series[adj_close_col_name].pct_change()
@@ -169,8 +165,9 @@ class WeightedPortfolio(object):
 
             self.benchmark_cumulative_monthly_returns[month_key] = \
                 benchmark.future_data_frame[first_date:end_date]\
-                    [BulkStock.percentage_change_col_identifier][-1]
+                    [BulkStock.pct_change_col_id][-1]
 
             self.monthly_cumulative_alpha[month_key] = \
                 self.gross_cumulative_monthly_returns[month_key] - \
                 self.benchmark_cumulative_monthly_returns[month_key]
+ 
